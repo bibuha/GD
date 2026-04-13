@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Ambil Link Drive</title>
+
+  <p style="font-size: 13px; color: #888; margin-top: -10px;">
+    Powered by Hengki
+  </p>
+
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#4CAF50">
+
+  <link rel="icon" href="icon.png" type="image/png">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- 🔥 FIX CACHE BUSTER -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+
+  <style>
+    body {
+      font-family: Arial;
+      text-align: center;
+      padding: 30px;
+      background: #f5f6fa;
+    }
+
+    input, select {
+      padding: 12px;
+      width: 250px;
+      margin: 8px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+
+    .btn-wrapper {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    button {
+      padding: 14px 20px;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      cursor: pointer;
+      width: 140px;
+    }
+
+    .ambil {
+      background: #4CAF50;
+      color: white;
+    }
+
+    .copy {
+      background: #2196F3;
+      color: white;
+    }
+
+    pre {
+      text-align: left;
+      background: white;
+      padding: 15px;
+      border-radius: 10px;
+      max-width: 500px;
+      margin: 20px auto;
+      overflow-x: auto;
+    }
+
+    #preview {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    #preview img {
+      width: 150px;
+      height: auto;
+      object-fit: contain;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+
+<h3>Ambil Link Google Drive</h3>
+
+<input id="folderId" placeholder="Paste Folder Link / ID"><br>
+
+<select id="sortBy">
+  <option value="nameDesc">Nama Z - A</option>
+  <option value="nameAsc">Nama A - Z</option>
+  <option value="newest">Terbaru</option>
+  <option value="oldest">Terlama</option>
+</select><br>
+
+<div class="btn-wrapper">
+  <button class="copy" onclick="copyLink()">Salin Link</button>
+  <button class="ambil" onclick="ambilLink()">Ambil Link</button>
+</div>
+
+<p id="jumlah"></p>
+<pre id="hasil"></pre>
+<div id="preview"></div>
+
+<script>
+const apiKey = "AIzaSyAuzBsVutQ-AfAWNER5zwlwC6eUDUQgs2c";
+
+function getFolderId(input) {
+  const match = input.match(/folders\/([a-zA-Z0-9_-]+)/);
+  return match ? match[1] : input;
+}
+
+async function ambilLink() {
+  const rawInput = document.getElementById("folderId").value.trim();
+  const folderId = getFolderId(rawInput);
+  const sortBy = document.getElementById("sortBy").value;
+
+  let files = [];
+  let pageToken = "";
+
+  do {
+    const url =
+      `https://www.googleapis.com/drive/v3/files` +
+      `?q='${folderId}'+in+parents` +
+      `&fields=nextPageToken,files(id,name,createdTime)` +
+      `&pageSize=1000` +
+      `&pageToken=${pageToken || ""}` +
+      `&key=${apiKey}`;
+
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (data.files) files = files.concat(data.files);
+
+    pageToken = data.nextPageToken;
+  } while (pageToken);
+
+  // 🔥 FIX URUTAN STABIL
+  files.sort((a, b) => {
+    if (sortBy === "nameAsc") return a.name.localeCompare(b.name);
+    if (sortBy === "nameDesc") return b.name.localeCompare(a.name);
+    if (sortBy === "newest") return new Date(b.createdTime) - new Date(a.createdTime);
+    if (sortBy === "oldest") return new Date(a.createdTime) - new Date(b.createdTime);
+  });
+
+  let hasil = "";
+  let ids = [];
+
+  files.forEach(f => {
+    hasil += `https://drive.google.com/uc?id=${f.id}\n`;
+    ids.push(f.id);
+  });
+
+  let previewHTML = "";
+  ids.forEach(id => {
+    let img = `https://drive.google.com/thumbnail?id=${id}&sz=w500`;
+    let link = `https://drive.google.com/uc?id=${id}`;
+    previewHTML += `<img src="${img}" onclick="window.open('${link}')">`;
+  });
+
+  document.getElementById("hasil").textContent = hasil;
+  document.getElementById("preview").innerHTML = previewHTML;
+  document.getElementById("jumlah").textContent = "📁 Jumlah file: " + ids.length;
+}
+
+function copyLink() {
+  navigator.clipboard.writeText(document.getElementById("hasil").textContent);
+  alert("Link berhasil disalin!");
+}
+
+/* 🔥 FIX SERVICE WORKER CACHE STUCK */
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("service-worker.js")
+  .then(reg => {
+    reg.update();
+  });
+}
+</script>
+
+</body>
+</html>
